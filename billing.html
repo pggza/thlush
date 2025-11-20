@@ -1,0 +1,835 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Food Billing</title>
+  <style>
+    :root { font-family: "Segoe UI", Arial, sans-serif; color: #1f1f1f; background: #f7f5f2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .shell { width: min(1100px, 100%); background: #fff; border-radius: 18px; box-shadow: 0 30px 80px rgba(15,15,20,.15); padding: clamp(20px, 4vw, 40px); }
+    h1 { margin: 0 0 12px; font-size: clamp(26px, 4vw, 34px); }
+    p.lead { margin: 0 0 28px; color: #5c5c68; font-size: clamp(14px, 2vw, 16px); }
+    
+    /* Tabs */
+    .tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #e0d7cf; }
+    .tab-btn { padding: 12px 24px; background: none; border: none; border-bottom: 3px solid transparent; font-size: 16px; font-weight: 600; color: #5c5c68; cursor: pointer; transition: all 0.3s; }
+    .tab-btn:hover { color: #1f1f1f; background-color: #f7f5f2; }
+    .tab-btn.active { color: #ff7a18; border-bottom-color: #ff7a18; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .products { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+    .item { border: 2px solid #f0e6dd; border-radius: 16px; padding: 18px; background: #fffbf6; display: flex; flex-direction: column; gap: 6px; min-height: 180px; transition: border .2s, transform .2s; }
+    .item h3 { margin: 0; font-size: 18px; }
+    .item span.price { color: #f0673a; font-weight: 600; }
+    .controls { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .controls button { width: 38px; height: 38px; border-radius: 12px; border: none; font-size: 22px; background: #1f70ff; color: #fff; cursor: pointer; transition: transform .15s; }
+    .controls button:active { transform: scale(.94); }
+    .qty { flex: 1; text-align: center; font-size: 18px; font-weight: 600; }
+    .summary { margin-top: 32px; padding-top: 24px; border-top: 1px dashed #e0d7cf; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: center; }
+    .selected { font-size: 14px; color: #555; min-height: 60px; }
+    .total { font-size: 22px; font-weight: 700; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    button.primary { flex: 1; min-width: 180px; border: none; border-radius: 14px; padding: 14px 20px; font-size: 16px; font-weight: 600; background: linear-gradient(120deg, #ff7a18, #ffb347); color: #fff; cursor: pointer; box-shadow: 0 12px 25px rgba(255,122,24,.3); }
+    button.secondary { flex: 1; min-width: 160px; border-radius: 14px; padding: 14px 20px; font-size: 15px; border: 2px solid #ffb347; background: transparent; color: #ff7a18; font-weight: 600; cursor: pointer; }
+    
+    /* Manage Menu Styles */
+    .manage-section { margin-top: 24px; }
+    .add-form { background: #fffbf6; border: 2px solid #f0e6dd; border-radius: 16px; padding: 24px; margin-bottom: 32px; }
+    .add-form h3 { margin: 0 0 20px; color: #1f1f1f; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #1f1f1f; font-size: 14px; }
+    .form-group input, .form-group textarea { width: 100%; padding: 12px; border: 2px solid #e0d7cf; border-radius: 12px; font-size: 15px; font-family: inherit; transition: border-color 0.2s; }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #ff7a18; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-actions { display: flex; gap: 12px; }
+    .btn-add { background: linear-gradient(120deg, #28a745, #20c997); color: #fff; border: none; border-radius: 12px; padding: 12px 24px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 20px rgba(40,167,69,.3); }
+    .btn-add:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(40,167,69,.4); }
+    .remove-section h3 { margin: 0 0 20px; color: #1f1f1f; }
+    .item-manage { border: 2px solid #f0e6dd; border-radius: 16px; padding: 18px; background: #fffbf6; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .item-manage-info h4 { margin: 0 0 6px; font-size: 18px; }
+    .item-manage-info p { margin: 0 0 4px; color: #5c5c68; font-size: 14px; }
+    .item-manage-info .price { color: #f0673a; font-weight: 600; font-size: 16px; }
+    .btn-remove { background: #dc3545; color: #fff; border: none; border-radius: 12px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform 0.15s; }
+    .btn-remove:hover { transform: scale(1.05); }
+    .btn-remove:active { transform: scale(.95); }
+    .empty-message { text-align: center; color: #999; padding: 40px; font-style: italic; }
+    
+    /* Billing History Styles */
+    .history-section { margin-top: 24px; }
+    .filter-section { background: #fffbf6; border: 2px solid #f0e6dd; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .filter-section h3 { margin: 0 0 20px; color: #1f1f1f; }
+    .filter-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .filter-row:last-child { margin-bottom: 0; }
+    .filter-group { display: flex; flex-direction: column; gap: 6px; }
+    .filter-group label { font-weight: 600; color: #1f1f1f; font-size: 14px; }
+    .filter-group input, .filter-group select { padding: 10px; border: 2px solid #e0d7cf; border-radius: 12px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
+    .filter-group input:focus, .filter-group select:focus { outline: none; border-color: #ff7a18; }
+    .filter-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .btn-filter { background: linear-gradient(120deg, #1f70ff, #4a90e2); color: #fff; border: none; border-radius: 12px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-filter:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(31,112,255,.3); }
+    .btn-download { background: linear-gradient(120deg, #28a745, #20c997); color: #fff; border: none; border-radius: 12px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-download:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(40,167,69,.3); }
+    .btn-reset-filter { background: transparent; color: #5c5c68; border: 2px solid #e0d7cf; border-radius: 12px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-reset-filter:hover { border-color: #ff7a18; color: #ff7a18; }
+    .history-list { display: flex; flex-direction: column; gap: 16px; }
+    .history-item { border: 2px solid #f0e6dd; border-radius: 16px; padding: 20px; background: #fffbf6; }
+    .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px; }
+    .history-date { font-size: 14px; color: #5c5c68; font-weight: 600; }
+    .history-total { font-size: 20px; font-weight: 700; color: #f0673a; }
+    .history-id { font-size: 12px; color: #999; }
+    .history-items { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e0d7cf; }
+    .history-item-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+    .history-item-name { color: #1f1f1f; }
+    .history-item-price { color: #5c5c68; font-weight: 600; }
+    .history-stats { margin-top: 24px; padding-top: 24px; border-top: 2px solid #e0d7cf; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+    .stat-card { background: #fffbf6; border: 2px solid #f0e6dd; border-radius: 12px; padding: 16px; text-align: center; }
+    .stat-label { font-size: 12px; color: #5c5c68; margin-bottom: 8px; }
+    .stat-value { font-size: 24px; font-weight: 700; color: #1f1f1f; }
+    
+    @media (max-width: 600px) {
+      .controls button { width: 34px; height: 34px; }
+      .item { padding: 16px; }
+      .summary { grid-template-columns: 1fr; }
+      .actions { flex-direction: column; }
+      .tabs { flex-direction: column; }
+      .tab-btn { text-align: left; }
+      .item-manage { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .btn-remove { width: 100%; }
+      .filter-row { grid-template-columns: 1fr; }
+      .filter-actions { flex-direction: column; }
+      .filter-actions button { width: 100%; }
+      .history-header { flex-direction: column; align-items: flex-start; }
+    }
+    @media print {
+      body { padding: 0; background: #fff; }
+      .shell { box-shadow: none; border-radius: 0; }
+      button { display: none; }
+      .tabs { display: none; }
+      .tab-content { display: block !important; }
+      .add-form { display: none; }
+      #customerDisplay { font-size: 16px; font-weight: 600; color: #1f1f1f; margin-bottom: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <h1>Food Order Billing</h1>
+    <p class="lead">Select food items and adjust quantities with + and -. Your total updates instantly and you can print the invoice anytime.</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="billing">Billing</button>
+      <button class="tab-btn" data-tab="manage">Manage Menu</button>
+      <button class="tab-btn" data-tab="history">Billing History</button>
+    </div>
+
+    <!-- Billing Tab -->
+    <div class="tab-content active" id="billingTab">
+      <div class="add-form" style="margin-bottom: 24px;">
+        <div class="form-group">
+          <label for="customerName">Customer Name:</label>
+          <input type="text" id="customerName" placeholder="Enter customer name (optional)" style="max-width: 400px;">
+        </div>
+      </div>
+
+      <section class="products" id="productList">
+        <!-- Items will be dynamically generated -->
+      </section>
+
+      <section class="summary">
+        <div class="selected" id="summaryList">No food items selected yet.</div>
+        <div id="customerDisplay" style="font-size: 14px; color: #5c5c68; margin-bottom: 8px; min-height: 20px;">
+          <!-- Customer name will be displayed here -->
+        </div>
+        <div class="total">Grand Total: ₹<span id="totalAmount">0.00</span></div>
+        <div class="actions">
+          <button class="secondary" id="resetBtn">Clear All</button>
+          <button class="primary" id="printInvoiceBtn">Print Invoice</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Manage Menu Tab -->
+    <div class="tab-content" id="manageTab">
+      <div class="manage-section">
+        <form class="add-form" id="addItemForm">
+          <h3>Add New Menu Item</h3>
+          <div class="form-group">
+            <label for="itemName">Item Name:</label>
+            <input type="text" id="itemName" name="name" required placeholder="e.g., Margherita Pizza">
+          </div>
+          <div class="form-group">
+            <label for="itemPrice">Price (₹):</label>
+            <input type="number" id="itemPrice" name="price" required step="0.01" min="0" placeholder="e.g., 12.00">
+          </div>
+          <div class="form-group">
+            <label for="itemDescription">Description:</label>
+            <textarea id="itemDescription" name="description" placeholder="e.g., Stone-baked, fresh mozzarella and basil"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-add">Add Item</button>
+          </div>
+        </form>
+
+        <div class="remove-section">
+          <h3>Remove Menu Items</h3>
+          <div id="manageItemList">
+            <!-- Items will be dynamically generated -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Billing History Tab -->
+    <div class="tab-content" id="historyTab">
+      <div class="history-section">
+        <div class="filter-section">
+          <h3>Filter History</h3>
+          <div class="filter-row">
+            <div class="filter-group">
+              <label for="filterStartDate">Start Date:</label>
+              <input type="date" id="filterStartDate">
+            </div>
+            <div class="filter-group">
+              <label for="filterEndDate">End Date:</label>
+              <input type="date" id="filterEndDate">
+            </div>
+            <div class="filter-group">
+              <label for="filterMinTotal">Min Total (₹):</label>
+              <input type="number" id="filterMinTotal" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="filter-group">
+              <label for="filterMaxTotal">Max Total (₹):</label>
+              <input type="number" id="filterMaxTotal" step="0.01" min="0" placeholder="Any">
+            </div>
+          </div>
+          <div class="filter-row">
+            <div class="filter-group">
+              <label for="filterSearch">Search Items/Customer:</label>
+              <input type="text" id="filterSearch" placeholder="Search by item name or customer...">
+            </div>
+            <div class="filter-group">
+              <label for="filterSort">Sort By:</label>
+              <select id="filterSort">
+                <option value="date-desc">Date (Newest First)</option>
+                <option value="date-asc">Date (Oldest First)</option>
+                <option value="total-desc">Total (Highest First)</option>
+                <option value="total-asc">Total (Lowest First)</option>
+              </select>
+            </div>
+          </div>
+          <div class="filter-actions">
+            <button class="btn-filter" id="applyFilterBtn">Apply Filters</button>
+            <button class="btn-reset-filter" id="resetFilterBtn">Reset Filters</button>
+            <button class="btn-download" id="downloadBtn">Download Filtered Data</button>
+          </div>
+        </div>
+
+        <div class="filter-section" style="margin-top: 24px;">
+          <h3>Data Management</h3>
+          <p style="margin: 0 0 16px; color: #5c5c68; font-size: 14px;">
+            Your billing history is stored locally in your browser. Use these tools to backup, restore, or manage your data.
+          </p>
+          <div class="filter-actions">
+            <button class="btn-download" id="exportAllBtn">Export All Data (Backup)</button>
+            <button class="btn-filter" id="importBtn" style="position: relative; overflow: hidden;">
+              Import Data (Restore)
+              <input type="file" id="importFileInput" accept=".json" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+            </button>
+            <button class="btn-reset-filter" id="clearHistoryBtn" style="background: #dc3545; color: #fff; border-color: #dc3545;">Clear All History</button>
+          </div>
+          <div id="storageInfo" style="margin-top: 16px; padding: 12px; background: #f7f5f2; border-radius: 8px; font-size: 13px; color: #5c5c68;">
+            <!-- Storage info will be displayed here -->
+          </div>
+        </div>
+
+        <div class="history-stats" id="historyStats">
+          <!-- Stats will be dynamically generated -->
+        </div>
+
+        <div class="history-list" id="historyList">
+          <!-- History items will be dynamically generated -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Default menu items
+    const defaultMenuItems = [
+      { id: 1, name: 'Margherita Pizza', price: 12, description: 'Stone-baked, fresh mozzarella and basil' },
+      { id: 2, name: 'Veggie Burger', price: 9, description: 'Grilled patty, cheddar, avocado aioli' },
+      { id: 3, name: 'Pasta Alfredo', price: 11, description: 'Creamy sauce, parmesan and herbs' },
+      { id: 4, name: 'Fresh Garden Salad', price: 7, description: 'Seasonal greens, citrus vinaigrette' },
+      { id: 5, name: 'Iced Caramel Latte', price: 5, description: 'Arabica espresso, milk and caramel' },
+      { id: 6, name: 'Classic Cheesecake', price: 6, description: 'Velvety cheesecake and berry coulis' }
+    ];
+
+    // Get menu items from localStorage or use defaults
+    function getMenuItems() {
+      const stored = localStorage.getItem('menuItems');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+      localStorage.setItem('menuItems', JSON.stringify(defaultMenuItems));
+      return defaultMenuItems;
+    }
+
+    // Save menu items to localStorage
+    function saveMenuItems(items) {
+      localStorage.setItem('menuItems', JSON.stringify(items));
+    }
+
+    // Initialize menu items
+    let menuItems = getMenuItems();
+    let nextId = Math.max(...menuItems.map(item => item.id), 0) + 1;
+
+    // Billing History Functions
+    function getBillingHistory() {
+      const stored = localStorage.getItem('billingHistory');
+      return stored ? JSON.parse(stored) : [];
+    }
+
+    function saveBillingHistory(history) {
+      localStorage.setItem('billingHistory', JSON.stringify(history));
+    }
+
+    function saveCurrentInvoice(silent = false) {
+      const items = [...productList.querySelectorAll('.item')];
+      const invoiceItems = [];
+      let total = 0;
+
+      items.forEach(item => {
+        const qty = Number(item.dataset.qty || 0);
+        if (qty > 0) {
+          const price = Number(item.dataset.price);
+          const itemTotal = qty * price;
+          total += itemTotal;
+          invoiceItems.push({
+            name: item.dataset.name,
+            quantity: qty,
+            price: price,
+            total: itemTotal
+          });
+        }
+      });
+
+      if (invoiceItems.length === 0) {
+        if (!silent) {
+          alert('Please add items to the invoice before saving.');
+        }
+        return false;
+      }
+
+      const customer = customerName.value.trim() || 'Walk-in Customer';
+
+      const invoice = {
+        id: Date.now(),
+        date: new Date().toISOString(),
+        customerName: customer,
+        items: invoiceItems,
+        total: total
+      };
+
+      const history = getBillingHistory();
+      history.push(invoice);
+      saveBillingHistory(history);
+
+      if (!silent) {
+        alert('Invoice saved successfully!');
+      }
+      renderHistory();
+      updateStorageInfo();
+      return true;
+    }
+
+    function saveAndPrintInvoice() {
+      if (saveCurrentInvoice(true)) {
+        window.print();
+      } else {
+        alert('Please add items to the invoice before printing.');
+      }
+    }
+
+    // DOM elements
+    const productList = document.getElementById('productList');
+    const totalAmount = document.getElementById('totalAmount');
+    const summaryList = document.getElementById('summaryList');
+    const customerName = document.getElementById('customerName');
+    const customerDisplay = document.getElementById('customerDisplay');
+    const resetBtn = document.getElementById('resetBtn');
+    const printInvoiceBtn = document.getElementById('printInvoiceBtn');
+    const manageItemList = document.getElementById('manageItemList');
+    const addItemForm = document.getElementById('addItemForm');
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const historyList = document.getElementById('historyList');
+    const historyStats = document.getElementById('historyStats');
+    const applyFilterBtn = document.getElementById('applyFilterBtn');
+    const resetFilterBtn = document.getElementById('resetFilterBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const exportAllBtn = document.getElementById('exportAllBtn');
+    const importBtn = document.getElementById('importBtn');
+    const importFileInput = document.getElementById('importFileInput');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const storageInfo = document.getElementById('storageInfo');
+
+    // Tab switching
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetTab = btn.dataset.tab;
+        
+        // Update active tab button
+        tabButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Update active tab content
+        tabContents.forEach(content => {
+          content.classList.remove('active');
+        });
+        document.getElementById(targetTab + 'Tab').classList.add('active');
+        
+        // Render history when switching to history tab
+        if (targetTab === 'history') {
+          renderHistory();
+          updateStorageInfo();
+        }
+      });
+    });
+
+    // Render items in billing tab
+    function renderBillingItems() {
+      productList.innerHTML = '';
+      menuItems.forEach(item => {
+        const article = document.createElement('article');
+        article.className = 'item';
+        article.dataset.id = item.id;
+        article.dataset.name = item.name;
+        article.dataset.price = item.price;
+        article.dataset.qty = '0';
+        
+        article.innerHTML = `
+          <h3>${item.name}</h3>
+          <p>${item.description || ''}</p>
+          <span class="price">₹${item.price.toFixed(2)}</span>
+          <div class="controls">
+            <button class="minus" aria-label="Decrease quantity">-</button>
+            <div class="qty" data-qty>0</div>
+            <button class="plus" aria-label="Increase quantity">+</button>
+          </div>
+        `;
+        productList.appendChild(article);
+      });
+      updateSummary();
+    }
+
+    // Render items in manage tab
+    function renderManageItems() {
+      manageItemList.innerHTML = '';
+      if (menuItems.length === 0) {
+        manageItemList.innerHTML = '<p class="empty-message">No menu items. Add your first item above!</p>';
+        return;
+      }
+      
+      menuItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item-manage';
+        div.innerHTML = `
+          <div class="item-manage-info">
+            <h4>${item.name}</h4>
+            <p>${item.description || 'No description'}</p>
+            <span class="price">₹${item.price.toFixed(2)}</span>
+          </div>
+          <button class="btn-remove" data-id="${item.id}">Remove</button>
+        `;
+        manageItemList.appendChild(div);
+      });
+
+      // Add event listeners to remove buttons
+      manageItemList.querySelectorAll('.btn-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = parseInt(btn.dataset.id);
+          removeMenuItem(id);
+        });
+      });
+    }
+
+    // Add new menu item
+    function addMenuItem(name, price, description) {
+      const newItem = {
+        id: nextId++,
+        name: name.trim(),
+        price: parseFloat(price),
+        description: description.trim() || ''
+      };
+      menuItems.push(newItem);
+      saveMenuItems(menuItems);
+      renderBillingItems();
+      renderManageItems();
+    }
+
+    // Remove menu item
+    function removeMenuItem(id) {
+      if (confirm('Are you sure you want to remove this item from the menu?')) {
+        menuItems = menuItems.filter(item => item.id !== id);
+        saveMenuItems(menuItems);
+        renderBillingItems();
+        renderManageItems();
+      }
+    }
+
+    // Update summary
+    function updateSummary() {
+      const items = [...productList.querySelectorAll('.item')];
+      const summary = [];
+      let total = 0;
+
+      items.forEach(item => {
+        const qty = Number(item.dataset.qty || 0);
+        if (qty > 0) {
+          const price = Number(item.dataset.price);
+          total += qty * price;
+          summary.push(`${qty} x ${item.dataset.name} - ₹${(qty * price).toFixed(2)}`);
+        }
+      });
+
+      summaryList.innerHTML = summary.length ? summary.join('<br>') : 'No food items selected yet.';
+      totalAmount.textContent = total.toFixed(2);
+    }
+
+    // Change quantity
+    function changeQty(item, delta) {
+      const current = Number(item.dataset.qty || 0) + delta;
+      item.dataset.qty = Math.max(0, current);
+      item.querySelector('[data-qty]').textContent = item.dataset.qty;
+      item.classList.toggle('active', Number(item.dataset.qty) > 0);
+      updateSummary();
+    }
+
+    // Event listeners
+    productList.addEventListener('click', e => {
+      const btn = e.target;
+      if (btn.classList.contains('plus') || btn.classList.contains('minus')) {
+        const article = btn.closest('.item');
+        changeQty(article, btn.classList.contains('plus') ? 1 : -1);
+      }
+    });
+
+    // Update customer display
+    function updateCustomerDisplay() {
+      const name = customerName.value.trim();
+      if (name) {
+        customerDisplay.innerHTML = `<strong>Customer:</strong> ${name}`;
+      } else {
+        customerDisplay.innerHTML = '';
+      }
+    }
+
+    customerName.addEventListener('input', updateCustomerDisplay);
+
+    resetBtn.addEventListener('click', () => {
+      productList.querySelectorAll('.item').forEach(item => {
+        item.dataset.qty = 0;
+        item.querySelector('[data-qty]').textContent = '0';
+        item.classList.remove('active');
+      });
+      customerName.value = '';
+      updateCustomerDisplay();
+      updateSummary();
+    });
+
+    addItemForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(addItemForm);
+      const name = formData.get('name');
+      const price = formData.get('price');
+      const description = formData.get('description') || '';
+      
+      if (name && price) {
+        addMenuItem(name, price, description);
+        addItemForm.reset();
+      }
+    });
+
+    // Print invoice button (saves and prints)
+    printInvoiceBtn.addEventListener('click', saveAndPrintInvoice);
+
+    // Filter and History Functions
+    let filteredHistory = [];
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function applyFilters() {
+      const history = getBillingHistory();
+      const startDate = document.getElementById('filterStartDate').value;
+      const endDate = document.getElementById('filterEndDate').value;
+      const minTotal = parseFloat(document.getElementById('filterMinTotal').value) || 0;
+      const maxTotal = parseFloat(document.getElementById('filterMaxTotal').value) || Infinity;
+      const searchTerm = document.getElementById('filterSearch').value.toLowerCase();
+      const sortBy = document.getElementById('filterSort').value;
+
+      filteredHistory = history.filter(invoice => {
+        const invoiceDate = new Date(invoice.date);
+        const matchesStartDate = !startDate || invoiceDate >= new Date(startDate);
+        const matchesEndDate = !endDate || invoiceDate <= new Date(endDate + 'T23:59:59');
+        const matchesMinTotal = invoice.total >= minTotal;
+        const matchesMaxTotal = invoice.total <= maxTotal;
+        const customerName = (invoice.customerName || 'Walk-in Customer').toLowerCase();
+        const matchesSearch = !searchTerm || 
+          invoice.items.some(item => item.name.toLowerCase().includes(searchTerm)) ||
+          customerName.includes(searchTerm);
+
+        return matchesStartDate && matchesEndDate && matchesMinTotal && matchesMaxTotal && matchesSearch;
+      });
+
+      // Sort filtered history
+      filteredHistory.sort((a, b) => {
+        switch(sortBy) {
+          case 'date-desc':
+            return new Date(b.date) - new Date(a.date);
+          case 'date-asc':
+            return new Date(a.date) - new Date(b.date);
+          case 'total-desc':
+            return b.total - a.total;
+          case 'total-asc':
+            return a.total - b.total;
+          default:
+            return 0;
+        }
+      });
+
+      renderHistory();
+    }
+
+    function resetFilters() {
+      document.getElementById('filterStartDate').value = '';
+      document.getElementById('filterEndDate').value = '';
+      document.getElementById('filterMinTotal').value = '';
+      document.getElementById('filterMaxTotal').value = '';
+      document.getElementById('filterSearch').value = '';
+      document.getElementById('filterSort').value = 'date-desc';
+      filteredHistory = [];
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const history = filteredHistory.length > 0 ? filteredHistory : getBillingHistory();
+      
+      // Sort by date descending if no filters applied
+      if (filteredHistory.length === 0) {
+        history.sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+
+      // Render stats
+      const totalInvoices = history.length;
+      const totalRevenue = history.reduce((sum, inv) => sum + inv.total, 0);
+      const avgOrder = totalInvoices > 0 ? totalRevenue / totalInvoices : 0;
+      const totalItems = history.reduce((sum, inv) => 
+        sum + inv.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0
+      );
+
+      historyStats.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">Total Invoices</div>
+          <div class="stat-value">${totalInvoices}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Revenue</div>
+          <div class="stat-value">₹${totalRevenue.toFixed(2)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Average Order</div>
+          <div class="stat-value">₹${avgOrder.toFixed(2)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Items</div>
+          <div class="stat-value">${totalItems}</div>
+        </div>
+      `;
+
+      // Render history list
+      if (history.length === 0) {
+        historyList.innerHTML = '<p class="empty-message">No billing history found. Save an invoice to see it here!</p>';
+        return;
+      }
+
+      historyList.innerHTML = history.map(invoice => {
+        const itemsHtml = invoice.items.map(item => `
+          <div class="history-item-row">
+            <span class="history-item-name">${item.quantity}x ${item.name}</span>
+            <span class="history-item-price">₹${item.total.toFixed(2)}</span>
+          </div>
+        `).join('');
+
+        const customer = invoice.customerName || 'Walk-in Customer';
+        return `
+          <div class="history-item">
+            <div class="history-header">
+              <div>
+                <div class="history-date">${formatDate(invoice.date)}</div>
+                <div class="history-id">Invoice #${invoice.id}</div>
+                <div style="font-size: 14px; color: #5c5c68; margin-top: 4px;">
+                  <strong>Customer:</strong> ${customer}
+                </div>
+              </div>
+              <div class="history-total">₹${invoice.total.toFixed(2)}</div>
+            </div>
+            <div class="history-items">
+              ${itemsHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function downloadFilteredData() {
+      const history = filteredHistory.length > 0 ? filteredHistory : getBillingHistory();
+      
+      if (history.length === 0) {
+        alert('No data to download.');
+        return;
+      }
+
+      // Create CSV content
+      let csv = 'Invoice ID,Date,Customer Name,Item Name,Quantity,Unit Price,Item Total,Invoice Total\n';
+      
+      history.forEach(invoice => {
+        const customer = invoice.customerName || 'Walk-in Customer';
+        invoice.items.forEach((item, index) => {
+          const isFirstItem = index === 0;
+          csv += `${isFirstItem ? invoice.id : ''},${isFirstItem ? formatDate(invoice.date) : ''},${isFirstItem ? customer : ''},${item.name},${item.quantity},₹${item.price.toFixed(2)},₹${item.total.toFixed(2)},${isFirstItem ? '₹' + invoice.total.toFixed(2) : ''}\n`;
+        });
+      });
+
+      // Create blob and download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `billing_history_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Data Management Functions
+    function updateStorageInfo() {
+      if (!storageInfo) return; // Element might not exist if not on history tab
+      
+      const history = getBillingHistory();
+      const menuItems = getMenuItems();
+      const historySize = JSON.stringify(history).length;
+      const menuSize = JSON.stringify(menuItems).length;
+      const totalSize = historySize + menuSize;
+      const sizeKB = (totalSize / 1024).toFixed(2);
+      const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+      
+      let sizeDisplay = sizeKB < 1024 ? `${sizeKB} KB` : `${sizeMB} MB`;
+      
+      storageInfo.innerHTML = `
+        <strong>Storage Information:</strong><br>
+        • Total Invoices: ${history.length}<br>
+        • Menu Items: ${menuItems.length}<br>
+        • Data Size: ${sizeDisplay}<br>
+        • Storage Location: Browser LocalStorage (local to this device)
+      `;
+    }
+
+    function exportAllData() {
+      const data = {
+        billingHistory: getBillingHistory(),
+        menuItems: getMenuItems(),
+        exportDate: new Date().toISOString(),
+        version: '1.0'
+      };
+      
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `billing_backup_${new Date().toISOString().split('T')[0]}.json`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      alert('All data exported successfully! Save this file to restore your data later.');
+    }
+
+    function importData(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          
+          if (!data.billingHistory || !data.menuItems) {
+            throw new Error('Invalid backup file format');
+          }
+          
+          if (confirm(`This will replace your current data with the imported data.\n\nImported:\n- ${data.billingHistory.length} invoices\n- ${data.menuItems.length} menu items\n\nContinue?`)) {
+            saveBillingHistory(data.billingHistory);
+            saveMenuItems(data.menuItems);
+            menuItems = data.menuItems;
+            nextId = Math.max(...menuItems.map(item => item.id), 0) + 1;
+            
+            renderBillingItems();
+            renderManageItems();
+            renderHistory();
+            updateStorageInfo();
+            
+            alert('Data imported successfully!');
+          }
+        } catch (error) {
+          alert('Error importing data: ' + error.message + '\n\nPlease make sure you selected a valid backup file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAllHistory() {
+      if (confirm('Are you sure you want to clear ALL billing history? This action cannot be undone!\n\nMake sure you have exported a backup first.')) {
+        if (confirm('This is your last chance. Clear all history?')) {
+          saveBillingHistory([]);
+          filteredHistory = [];
+          renderHistory();
+          updateStorageInfo();
+          alert('All billing history has been cleared.');
+        }
+      }
+    }
+
+    // Filter event listeners
+    applyFilterBtn.addEventListener('click', applyFilters);
+    resetFilterBtn.addEventListener('click', resetFilters);
+    downloadBtn.addEventListener('click', downloadFilteredData);
+    
+    // Data management event listeners
+    exportAllBtn.addEventListener('click', exportAllData);
+    importFileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        importData(e.target.files[0]);
+        e.target.value = ''; // Reset input
+      }
+    });
+    clearHistoryBtn.addEventListener('click', clearAllHistory);
+
+    // Initial render
+    renderBillingItems();
+    renderManageItems();
+    // Storage info will be updated when history tab is opened
+  </script>
+</body>
+</html>
